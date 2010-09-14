@@ -1,5 +1,6 @@
 from django.contrib.contenttypes.models import ContentType
 from django.core.mail import mail_admins
+from django.db import transaction
 from django.conf import settings
 
 from carrot.connection import DjangoBrokerConnection
@@ -12,6 +13,7 @@ import warnings
 
 USER_AGENT_FILTERING = getattr(settings,'TRACKABLE_USER_AGENT_FILTERING', False)
 REMOVE_MALFORMED_MESSAGES = getattr(settings,'TRACKABLE_REMOVE_MALFORMED_MESSAGES', False)
+CAPTURE_CONNECTION_ERRORS = getattr(settings,'TRACKABLE_CAPTURE_CONNECTION_ERRORS', False)
 
 _connection_cache = {
     'connection': None,
@@ -19,6 +21,10 @@ _connection_cache = {
         'trackable': {}
         },
 }
+
+
+# TODO: make get_connection suck far less than it
+#       currently does.
 def get_connection(con_type='connection', op_name=None):
     if not _connection_cache['connection']:
         _connection_cache['connection'] = DjangoBrokerConnection()
@@ -64,10 +70,13 @@ def send_message(request, obj, field_name, op_name, data_cls=None, options={}):
         connection = get_connection()
         publisher = get_connection('publisher',op_name)
     except Exception, e:
-        mail_admins( \
-            'MQ connection failed',
-            'Unable to connect get connection to message queue. Bailing. %s' % str(e))
-        return
+        if not CAPTURE_CONNECTION_ERRORS:
+            raise e
+        else:
+            mail_admins( \
+                'MQ connection failed',
+                'Unable to connect get connection to message queue. Bailing. %s' % str(e))
+            return
 
     if not data_cls:
         try:
@@ -113,6 +122,7 @@ def send_decrement_message(request, obj, field_name, data_cls=None, options={}):
         options.update([('value',1)])
     send_message(request, obj, field_name, 'decr', data_cls=data_cls, options=options)
 
+@transaction.commit_on_success
 def process_messages(log=False, model_cls=None):
     """
     Process all currently gathered messages by compiling and 
@@ -208,4 +218,3 @@ def process_messages(log=False, model_cls=None):
         
         # Acknowledge the messages now that the operation has been registered
         [message.ack() for message in messages_lookup[key]]
-
