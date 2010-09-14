@@ -183,24 +183,28 @@ def process_messages(log=False, model_cls=None):
             continue
 
         key = (record,op_name,field_name)
-        l_operand,r_operand = (
-            values_lookup.get(key,None),
-            result
-            )
+        # l_operand,r_operand = (
+        #     values_lookup.get(key,None),
+        #     result
+        #     )
+        if key not in values_lookup:
+            values_lookup[key] = []
 
         try:
-            op_func = getattr(record,op_name)
+            # op_func = getattr(record,op_name)
+            getattr(record,op_name)
         except AttributeError:
             raise TrackableError( \
                 u"%s does not support %s operation." \
                     % (record._meta.verbose_name,op_name))
 
-        values_lookup[key] = op_func( \
-            field_name,
-            value=r_operand, 
-            initial_value=l_operand,
-            update=False
-            )
+        # values_lookup[key] = op_func( \
+        #     field_name,
+        #     value=r_operand, 
+        #     initial_value=l_operand,
+        #     update=False
+        #     )
+        values_lookup[key].append( result )
 
         # Keep the message objects so we can ack the messages as processed 
         # when we are finished with them.
@@ -209,12 +213,18 @@ def process_messages(log=False, model_cls=None):
         else:
             messages_lookup[key] = [message]
 
-    for key, result in values_lookup.items():
+    for key, results in values_lookup.items():
         (record,op_name,field_name) = key
-        record._write_attribute_value(field_name,result)
+        for result in results:
+            # record._write_attribute_value(field_name,result)
+            op_func = getattr(record,op_name)
+            op_func( field_name, result )
+            
+            if log:
+                print "(%s)->%s on %s: %s" % \
+                    (record,op_name,field_name,result)
 
-        if log:
-            print "(%s)->%s on %s: %s" % (record,op_name,field_name,result)
+        record.save()
         
         # Acknowledge the messages now that the operation has been registered
         [message.ack() for message in messages_lookup[key]]

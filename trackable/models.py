@@ -4,6 +4,7 @@ from django.db import models, transaction, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.contenttypes import generic
 from django.conf import settings
+from django.db.models import F
 
 import datetime
 
@@ -70,38 +71,70 @@ class TrackableData(models.Model):
         ordering = ('content_type','object_id')
         unique_together = ('content_type','object_id')
 
-    def _get_attribute_value(self, attr):
+    # def _get_attribute_value(self, attr):
+    #     try:
+    #         return getattr(self,attr)
+    #     except AttributeError:
+    #         raise TrackableError( \
+    #             u"Attribute %s does not exist" % attr)
+
+    # def _write_attribute_value(self, attr, value):
+    #     setattr(self,attr,value)
+    #     self.save()
+        
+    # def op(self, attr, change_func, initial_value=None, update=True):
+    #     if not initial_value:
+    #         # initial_value = self._get_attribute_value(attr)
+    #         try:
+    #             initial_value = getattr(self,attr)
+    #         except AttributeError:
+    #             raise TrackableError( \
+    #                 u"Attribute %s does not exist" % attr)
+    #     value = change_func(initial_value)
+    #     if update: 
+    #         # self._write_attribute_value(attr,value)
+    #         setattr(self,attr,value)
+    #         self.save()
+
+    #     return value
+
+    # def incr(self, attr, value=1, initial_value=None, update=True):
+    #     value = long(value)
+    #     initial_value = initial_value if not initial_value else long(initial_value)
+
+    #     return self.op(attr, lambda x:x+value, initial_value=initial_value, update=update)
+
+    # def decr(self, attr, value=1, initial_value=None, update=True):
+    #     value = long(value)
+    #     initial_value = initial_value if not initial_value else long(initial_value)
+
+    #     return self.op(attr, lambda x:x-value, initial_value=initial_value, update=update)
+
+    def op(self, attr, change_func, commit=False):
         try:
-            field_value = getattr(self,attr)
+            _attr = getattr(self,attr)
         except AttributeError:
             raise TrackableError( \
                 u"Attribute %s does not exist" % attr)
 
-        return field_value
+        _attr = change_func( F(attr) )
+        return _attr
 
-    def _write_attribute_value(self, attr, value):
-        setattr(self,attr,value)
-        self.save()
-        
-    def op(self, attr, change_func, initial_value=None, update=True):
-        if not initial_value:
-            initial_value = self._get_attribute_value(attr)
-        value = change_func(initial_value)
-        if update: 
-            self._write_attribute_value(attr,value)
-        return value
+        # value = change_func(initial_value)
+        # if update: 
+        #     # self._write_attribute_value(attr,value)
+        #     setattr(self,attr,value)
+        #     self.save()
 
-    def incr(self, attr, value=1, initial_value=None, update=True):
+        # return value
+
+    def incr(self, attr, value=1, commit=False):
         value = long(value)
-        initial_value = initial_value if not initial_value else long(initial_value)
+        return self.op(attr, lambda x:x+value, commit=commit)
 
-        return self.op(attr, lambda x:x+value, initial_value=initial_value, update=update)
-
-    def decr(self, attr, value=1, initial_value=None, update=True):
+    def decr(self, attr, value=1, commit=False):
         value = long(value)
-        initial_value = initial_value if not initial_value else long(initial_value)
-
-        return self.op(attr, lambda x:x-value, initial_value=initial_value, update=update)
+        return self.op(attr, lambda x:x-value, commit=commit)
 
     def __unicode__(self):
         return u"%s (%s)" % \
