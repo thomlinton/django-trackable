@@ -4,7 +4,7 @@ django-trackable
 
 ``Django-trackable`` attempts to be a reusable Django application that provides
 infrastructure to easily implement the functionality required to capture
-arbitrary tracking data out-of-band. This documentation assumes as basic 
+arbitrary tracking data out-of-band. This documentation assumes a basic 
 familiarity with `Django`_ and the `Celery`_ package. For usage and installation 
 instructions, please review the documentation.
 
@@ -85,14 +85,23 @@ To disable the collection task completely::
     TRACKABLE_DISABLE_COLLECTION_TASK = True [False]
 
 Alternatively, you may trigger this function from the builtin Django shell by using the 
-management command ``fold_trackable_messages``. For convenience, a tracking data migration 
-command is provided; your mileage may vary::
+management command ``fold_trackable_messages``. 
+
+To enable the capture of connection errors (when connecting to the messaging broker) to avoid 
+e.g., HTTP 500::
+
+    TRACKABLE_CAPTURE_CONNECTION_ERRORS = True [False]
+
+Any exception caught while this configuration setting is enabled with be emailed to the 
+addresses listed in ``ADMINS``.
+
+For convenience, a tracking data migration command is provided; your mileage may vary::
 
     ./manage.py convert_tracking_data --help
 
 Some nonzero interval of time -- varying on the developer in question -- you might manage 
 to create 'malformed' messages for a variety of reasons; to prevent the collection tasks 
-from continually revisiting the same broken messages:
+from continually revisiting the same broken messages::
 
      TRACKABLE_REMOVE_MALFORMED_MESSAGES = True [False]
 
