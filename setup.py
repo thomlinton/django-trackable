@@ -21,7 +21,7 @@ setup(
     install_requires = [
         'django-celery',
         ],
-    long_description=read('README'),
+    long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
