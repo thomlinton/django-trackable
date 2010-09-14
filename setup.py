@@ -10,7 +10,7 @@ def read(fname):
 
 setup(
     name = "django-trackable",
-    version = "0.1.1",
+    version = "0.1.2",
     author = "Thom Linton",
     author_email = "thom.linton@gmail.com",
     description = "Provides infrastructure to easily implement functionality that captures arbitrary tracking data out-of-band.",
@@ -21,7 +21,7 @@ setup(
     install_requires = [
         'django-celery',
         ],
-    long_description=read('README.rst'),
+    long_description=read('README'),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
