@@ -4,11 +4,10 @@ from trackable.sites import TrackableRegistry, site
 
 def autodiscover():
     """
-    Auto-discover INSTALLED_APPS admin.py modules and fail silently when
-    not present. This forces an import on them to register any admin bits they
-    may want.
-    """
+    Auto-discover INSTALLED_APPS trackabledata.py modules and fail silently when
+    not present. 
 
+    """
     import copy
     from django.conf import settings
     from django.utils.importlib import import_module
