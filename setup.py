@@ -10,7 +10,7 @@ def read(fname):
 
 setup(
     name = "django-trackable",
-    version = "0.1",
+    version = "0.1.1",
     author = "Thom Linton",
     author_email = "thom.linton@gmail.com",
     description = "Provides infrastructure to easily implement functionality that captures arbitrary tracking data out-of-band.",
