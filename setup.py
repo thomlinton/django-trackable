@@ -13,13 +13,15 @@ setup(
     version = "0.1",
     author = "Thom Linton",
     author_email = "thom.linton@gmail.com",
-    description = ""
+    description = "Provides infrastructure to easily implement functionality that captures arbitrary tracking data out-of-band.",
     license = "BSD",
     keywords = "django tracking",
     url = "http://github.com/yorkedork/django-trackable/tree/master",
     packages=['trackable',],
-    install_requires = ('django-celery',)
-    long_description=read('README'),
+    install_requires = [
+        'django-celery',
+        ],
+    long_description=read('README.rst'),
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",

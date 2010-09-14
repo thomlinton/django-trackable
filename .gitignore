@@ -1,4 +1,5 @@
 *~
 *.pyc
+django_trackable.egg-info
 dist
 build

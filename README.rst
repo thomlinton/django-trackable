@@ -1,10 +1,18 @@
-Django-trackable attempts to be a reusable Django application that provides
+================
+django-trackable
+================
+
+``Django-trackable`` attempts to be a reusable Django application that provides
 infrastructure to easily implement the functionality required to capture
 arbitrary tracking data out-of-band. This documentation assumes as basic 
-familiarity with Django and the Celery package. For usage and installation 
+familiarity with `Django`_ and the `Celery`_ package. For usage and installation 
 instructions, please review the documentation.
 
-For developers already accustomed to Django, Django-trackable employs an 
+
+Defining tracking datasets
+--------------------------
+
+For developers already accustomed to Django, ``Django-trackable`` employs an 
 interface identical to ``django.contrib.admin``. It provides basic scaffolding
 with which to construct more complex tracking datasets; for example, time-series 
 data is supported out-of-the-box. To construct your own tracking dataset models 
@@ -33,13 +41,16 @@ For convenience, you can supply your own ``ModelAdmin`` class in the same call::
 
     trackable.site.register(MyObject, MyObjectTrackableData, MyObjectTrackableDataAdmin)
 
-Please note that for convenience, Django-trackable will only actually register the 
+Please note that for convenience, ``Django-trackable`` will only actually register the 
 ``ModelAdmin`` class when ``DEBUG`` is set; in other words, it's unlikely of much use 
 unless you are debugging your application.
 
+Emitting tracking events
+------------------------
+
 In order to interact with these datasets, you'll need broadcast builtin or user-defined 
 messages (events) when encountering an event of interest within a, e.g., a view. For more 
-information on extending Django-trackable by defining your own messages please consult 
+information on extending ``Django-trackable`` by defining your own messages please consult 
 the documentation.
 
 Continuing the previous example::
@@ -58,7 +69,10 @@ Notice that you pass the object to which the tracking data will be attached as w
 the field you wish to signal (in this case, the ``impressions`` field on 
 ``MyObjectTrackingData``).
 
-Finally, in order to collect and process these events, you may utilize the utility 
+Collecting tracking data
+------------------------
+
+In order to collect and process these events, you may utilize the utility 
 ``trackable.messaging.process_messages'. As a convenience, a Django-celery task has been 
 provided (``trackable.tasks.CollectTrackingData``) and is enabled by default. To adjust 
 the collection period::
@@ -82,10 +96,14 @@ from continually revisiting the same broken messages:
 
      TRACKABLE_REMOVE_MALFORMED_MESSAGES = True [False]
 
-Django-trackable includes an optional, primitive spider-filtering mechanism that is 
+``Django-trackable`` includes an optional, primitive spider-filtering mechanism that is 
 disabled by default. To enable it::
 
     TRACKABLE_USER_AGENT_FILTERTING = True [False]
 
 A poorly-fashioned dataset of spiders is provided as a fixture which you are welcome to 
 use with the knowledge that you'll likely need to craft a means of generating your own.
+
+
+.. _Django: http://djangoproject.org
+.. _Celery: http://celeryproject.org
