@@ -71,45 +71,6 @@ class TrackableData(models.Model):
         ordering = ('content_type','object_id')
         unique_together = ('content_type','object_id')
 
-    # def _get_attribute_value(self, attr):
-    #     try:
-    #         return getattr(self,attr)
-    #     except AttributeError:
-    #         raise TrackableError( \
-    #             u"Attribute %s does not exist" % attr)
-
-    # def _write_attribute_value(self, attr, value):
-    #     setattr(self,attr,value)
-    #     self.save()
-        
-    # def op(self, attr, change_func, initial_value=None, update=True):
-    #     if not initial_value:
-    #         # initial_value = self._get_attribute_value(attr)
-    #         try:
-    #             initial_value = getattr(self,attr)
-    #         except AttributeError:
-    #             raise TrackableError( \
-    #                 u"Attribute %s does not exist" % attr)
-    #     value = change_func(initial_value)
-    #     if update: 
-    #         # self._write_attribute_value(attr,value)
-    #         setattr(self,attr,value)
-    #         self.save()
-
-    #     return value
-
-    # def incr(self, attr, value=1, initial_value=None, update=True):
-    #     value = long(value)
-    #     initial_value = initial_value if not initial_value else long(initial_value)
-
-    #     return self.op(attr, lambda x:x+value, initial_value=initial_value, update=update)
-
-    # def decr(self, attr, value=1, initial_value=None, update=True):
-    #     value = long(value)
-    #     initial_value = initial_value if not initial_value else long(initial_value)
-
-    #     return self.op(attr, lambda x:x-value, initial_value=initial_value, update=update)
-
     def op(self, attr, change_func, commit=False):
         try:
             _attr = getattr(self,attr)
@@ -119,14 +80,6 @@ class TrackableData(models.Model):
 
         _attr = change_func( F(attr) )
         return _attr
-
-        # value = change_func(initial_value)
-        # if update: 
-        #     # self._write_attribute_value(attr,value)
-        #     setattr(self,attr,value)
-        #     self.save()
-
-        # return value
 
     def incr(self, attr, value=1, commit=False):
         value = long(value)
