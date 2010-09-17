@@ -1,19 +1,29 @@
 from django.contrib.contenttypes.models import ContentType
 from django.core.mail import mail_admins
-from django.db import transaction
 from django.conf import settings
+from django.db import connection
 
 from carrot.connection import DjangoBrokerConnection
 from carrot.messaging import Publisher, Consumer
 from trackable import site, TrackableError
 from trackable.models import Spider
 
+import multiprocessing
 import datetime
 import warnings
+import logging
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle
 
 USER_AGENT_FILTERING = getattr(settings,'TRACKABLE_USER_AGENT_FILTERING', False)
 REMOVE_MALFORMED_MESSAGES = getattr(settings,'TRACKABLE_REMOVE_MALFORMED_MESSAGES', False)
 CAPTURE_CONNECTION_ERRORS = getattr(settings,'TRACKABLE_CAPTURE_CONNECTION_ERRORS', False)
+PROCESS_NUM_MESSAGES = getattr(settings,'TRACKABLE_PROCESS_NUM_MESSAGES', 100)
+
+UNDEFINED_AGENT = 'UNDEFINED_HTTP_USER_AGENT'
 
 _connection_cache = {
     'connection': None,
@@ -79,10 +89,7 @@ def send_message(request, obj, field_name, op_name, data_cls=None, options={}):
             return
 
     if not data_cls:
-        try:
-            data_cls = site._registry[obj.__class__][0]
-        except (KeyError,IndexError):
-            raise
+        data_cls = site._registry[obj.__class__][0]
 
     value = None
     try:
@@ -90,14 +97,25 @@ def send_message(request, obj, field_name, op_name, data_cls=None, options={}):
     except KeyError:
         pass
 
-    data_obj = data_cls.objects.get_data_object(obj,options)
-    content_type_pk = ContentType.objects.get_for_model(data_cls).pk
-    object_id = data_obj.pk
-    message_body = \
-        "%s:(%s,%d,%d,%s)=%d" % \
-            (request.META['HTTP_USER_AGENT'], 
-             op_name,content_type_pk,
-             object_id,field_name,value)
+    # data_obj = data_cls.objects.get_data_object(obj,options)
+    # content_type_pk = ContentType.objects.get_for_model(data_cls).pk
+    # object_id = data_obj.pk
+    # user_agent = request.META['HTTP_USER_AGENT'] \
+    #     if 'HTTP_USER_AGENT' in request.META else 'Undefined HTTP_USER_AGENT'
+    # message_body = \
+    #     "%s:(%s,%d,%d,%s)=%d" % (user_agent,op_name,content_type_pk,object_id,field_name,value)
+
+    message_obj = {}
+    message_obj['content_type_pk'] = ContentType.objects.get_for_model(data_cls).pk
+    message_obj['object_id'] = data_cls.objects.get_data_object(obj,options).pk
+    message_obj['user_agent'] = request.META['HTTP_USER_AGENT'] \
+        if 'HTTP_USER_AGENT' in request.META else UNDEFINED_AGENT
+    message_obj['field_name'] = field_name
+    message_obj['op_name'] = op_name
+    message_obj['options'] = options
+    message_obj['value'] = value
+
+    message_body = pickle.dumps( message_obj )
     publisher.send(message_body)
 
 def send_increment_message(request, obj, field_name, data_cls=None, options={}):
@@ -122,8 +140,7 @@ def send_decrement_message(request, obj, field_name, data_cls=None, options={}):
         options.update([('value',1)])
     send_message(request, obj, field_name, 'decr', data_cls=data_cls, options=options)
 
-@transaction.commit_on_success
-def process_messages(log=False, model_cls=None):
+def process_messages(log=False, model_cls=None, max_messages=PROCESS_NUM_MESSAGES):
     """
     Process all currently gathered messages by compiling and 
     saving them to the database.
@@ -141,34 +158,54 @@ def process_messages(log=False, model_cls=None):
     values_lookup = {}
     messages_lookup = {}
 
-    for message in consumer.iterqueue():
-        try:
-            (user_agent,body) = message.body.rsplit(':',1)
-            if USER_AGENT_FILTERING:
-                hits = Spider.objects.filter(user_agent__icontains=user_agent[:128])
-                if hits:
-                    msg = "Will not process potential spider-generated tracking message (%s)" % (user_agent)
-                    warnings.warn( msg )
-                    message.ack()
-                    continue
-        except ValueError:
-            msg = "Malformed message: does not contain user agent information: %s" % (message.body)
-            warnings.warn( msg )
-            if REMOVE_MALFORMED_MESSAGES:
+    cnt = 1
+
+    logger = multiprocessing.get_logger()
+
+    # HACK: to support multiprocessing with Django DB connections, & c.
+    connection.close()
+
+    for i in xrange(max_messages):
+        message = consumer.fetch()
+        if not message:
+            return
+
+        message_obj = pickle.loads(message.body)
+        logger.info( "%d Got message: %s" % (cnt,message_obj) )
+        cnt += 1
+
+        if USER_AGENT_FILTERING:
+            if message_obj['user_agent'] == UNDEFINED_AGENT:
+                msg = "Cannot match: user agent does not exist."
+                logger.warn( msg )
                 message.ack()
-            continue
+                continue
+            hits = Spider.objects.filter( \
+                user_agent__icontains=message_obj['user_agent'][:128])
+            if hits:
+                msg = "Not processing potential spider-generated tracking message. User agent=%s" % (message_obj['user_agent'])
+                logger.warn( msg )
+                message.ack()
+                continue
 
-        (func,result) = body.split('=')
-        (op_name,contenttype_pk,object_id,field_name) = func.strip("()").split(',')
+        (op_name,field_name,contenttype_pk,object_id,result) = \
+            message_obj['op_name'], message_obj['field_name'], \
+            message_obj['content_type_pk'], message_obj['object_id'], \
+            message_obj['value']
+
+        logger.debug( "Parsed message parameters" )
 
         try:
-            model_content_type = ContentType.objects.get(pk=long(contenttype_pk))
+            model_content_type = ContentType.objects.get(pk=contenttype_pk)
         except ContentType.DoesNotExist, e:
             msg = "Cannot process message concerning object of content_type %d: %s" % (contenttype_pk,message.body)
-            warnings.warn( msg )
+            logger.warn( msg )
             continue
 
+        logger.debug( "Determined content_type" )
+
         if model_cls and model_content_type.model_class() != model_cls:
+            logger.warn( "Skipping model_cls != model_content_type.model_class()" )
             continue
 
         _model_cls = model_cls
@@ -176,55 +213,26 @@ def process_messages(log=False, model_cls=None):
             _model_cls = model_content_type.model_class()
 
         try:
-            record = _model_cls.objects.get(pk=long(object_id))
+            record = _model_cls.objects.get(pk=object_id)
         except _model_cls.DoesNotExist:
-            msg = u"Trackable record doesn't exist (ctype=%s,pk=%s): %s" % (_model_cls,object_id,message.body)
-            warnings.warn( msg )
+            msg = u"Trackable record doesn't exist (ctype=%s,pk=%s): %s" % (_model_cls,object_id,message_obj)
+            logger.warn( msg )
             continue
 
-        key = (record,op_name,field_name)
-        # l_operand,r_operand = (
-        #     values_lookup.get(key,None),
-        #     result
-        #     )
-        if key not in values_lookup:
-            values_lookup[key] = []
-
         try:
-            # op_func = getattr(record,op_name)
             getattr(record,op_name)
         except AttributeError:
             raise TrackableError( \
                 u"%s does not support %s operation." \
                     % (record._meta.verbose_name,op_name))
 
-        # values_lookup[key] = op_func( \
-        #     field_name,
-        #     value=r_operand, 
-        #     initial_value=l_operand,
-        #     update=False
-        #     )
-        values_lookup[key].append( result )
+        op_func = getattr(record,op_name)
+        op_func(field_name,result)
 
-        # Keep the message objects so we can ack the messages as processed 
-        # when we are finished with them.
-        if key in messages_lookup:
-            messages_lookup[key].append(message)
-        else:
-            messages_lookup[key] = [message]
+        record = _model_cls.objects.get(pk=object_id)
 
-    for key, results in values_lookup.items():
-        (record,op_name,field_name) = key
-        for result in results:
-            # record._write_attribute_value(field_name,result)
-            op_func = getattr(record,op_name)
-            op_func( field_name, result )
-            
-            if log:
-                print "(%s)->%s on %s: %s" % \
-                    (record,op_name,field_name,result)
+        if log:
+            logger.info( "(%s)->%s on %s: %s" % (record,op_name,field_name,result))
 
-        record.save()
-        
         # Acknowledge the messages now that the operation has been registered
-        [message.ack() for message in messages_lookup[key]]
+        message.ack()

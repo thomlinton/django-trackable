@@ -3,6 +3,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models, transaction, IntegrityError
 from django.utils.translation import ugettext_lazy as _
 from django.contrib.contenttypes import generic
+from django.db import transaction
 from django.conf import settings
 from django.db.models import F
 
@@ -56,8 +57,8 @@ class TrackableDataManager(models.Manager):
             except IntegrityError, e:
                 transaction.rollback()
                 return self.get_query_set().get(**params)
-        except MultipleObjectsReturned:
-            return self.get_query_set().filter(**params)[0]
+        # except MultipleObjectsReturned:
+        #     return self.get_query_set().filter(**params)[0]
 
 class TrackableData(models.Model):
     """ """
@@ -71,21 +72,26 @@ class TrackableData(models.Model):
         ordering = ('content_type','object_id')
         unique_together = ('content_type','object_id')
 
-    def op(self, attr, change_func, commit=False):
+    @transaction.commit_on_success
+    def op(self, attr, change_func, commit=True):
         try:
             _attr = getattr(self,attr)
         except AttributeError:
             raise TrackableError( \
                 u"Attribute %s does not exist" % attr)
 
-        _attr = change_func( F(attr) )
-        return _attr
+        # value = change_func( _attr )
+        value = change_func( F(attr) )
+        setattr(self,attr,value)
+        if commit:
+            self.save()
+        return value
 
-    def incr(self, attr, value=1, commit=False):
+    def incr(self, attr, value=1, commit=True):
         value = long(value)
         return self.op(attr, lambda x:x+value, commit=commit)
 
-    def decr(self, attr, value=1, commit=False):
+    def decr(self, attr, value=1, commit=True):
         value = long(value)
         return self.op(attr, lambda x:x-value, commit=commit)
 
