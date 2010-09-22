@@ -1,5 +1,5 @@
 ================
-django-trackable
+Django-trackable
 ================
 
 ``Django-trackable`` attempts to be a reusable Django application that provides
@@ -12,27 +12,19 @@ instructions, please review the documentation.
 .. _Celery: http://celeryproject.org
 
 
-Release notes
--------------
+Documentation
+=============
+.. toctree::
+   :maxdepth: 2
 
-0.2.0
-=====
+   getting_started
+   running_tests
 
-* Refactoring process_messages to remove ad-hoc message structure and to instead utilize pickle.
-* Added tests/test infrastructure.
-* Restructuring application to operate correctly under (real) concurrency.
 
-0.1.2
-=====
+Indices and tables
+==================
 
-* Maintenance release to fix PyPI issues.
+* :ref:`genindex`
+* :ref:`modindex`
+* :ref:`search`
 
-0.1.1
-=====
-
-* Updating documentation
-
-0.1.0
-=====
-
-* Initial release

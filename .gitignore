@@ -11,3 +11,4 @@ parts
 .installed.cfg
 local_settings.py
 test_settings.py
+docs/Makefile

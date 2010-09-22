@@ -72,10 +72,10 @@ Collecting tracking data
 ------------------------
 
 In order to collect and process these events, you may utilize the utility 
-``trackable.messaging.process_messages'. As a convenience, a Celery ``Task`` has been 
+``trackable.messaging.process_messages``. As a convenience, a Celery ``Task`` has been 
 provided (``trackable.tasks.CollectTrackingData``) and is enabled by default. 
 
-Prior to Celery 3.0, a PendingDeprecation has been applied to "old-style" periodic tasks.
+Prior to Celery 3.0, a ``PendingDeprecation`` has been applied to "old-style" periodic tasks.
 Depending with which version of Celery your project is built you may adjust the collection 
 period as follows::
 
@@ -85,6 +85,8 @@ period as follows::
 
     # in your django settings
     TRACKABLE_COLLECTION_PERIOD = N seconds [1800]
+
+or, ::
 
     #
     # New Style (taken from Celery documentation)
@@ -98,8 +100,6 @@ period as follows::
             "args": (16, 16)
         },
     }
-
-    or, 
 
     from celery.schedules import crontab
 
@@ -118,6 +118,10 @@ To disable the collection task completely (trackable won't register the task)::
 
 Alternatively, you may trigger this function from the builtin Django shell by using the 
 management command ``fold_trackable_messages``. 
+
+
+Settings & Miscellany
+---------------------
 
 To enable the capture of connection errors (when connecting to the messaging broker) to avoid 
 e.g., HTTP 500::
