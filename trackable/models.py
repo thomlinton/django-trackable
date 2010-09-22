@@ -10,9 +10,6 @@ from django.db.models import F
 import datetime
 
 
-class TrackableError(Exception):
-    pass
-
 class Spider(models.Model):
     """ """
     user_agent = models.CharField(max_length=128, unique=True)
@@ -80,11 +77,11 @@ class TrackableData(models.Model):
             raise TrackableError( \
                 u"Attribute %s does not exist" % attr)
 
-        # value = change_func( _attr )
         value = change_func( F(attr) )
         setattr(self,attr,value)
         if commit:
             self.save()
+
         return value
 
     def incr(self, attr, value=1, commit=True):

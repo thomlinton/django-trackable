@@ -3,3 +3,11 @@
 django_trackable.egg-info
 dist
 build
+bin
+eggs
+develop-eggs
+downloads
+parts
+.installed.cfg
+local_settings.py
+test_settings.py

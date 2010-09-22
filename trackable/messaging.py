@@ -1,12 +1,13 @@
 from django.contrib.contenttypes.models import ContentType
+from django.db import connection, transaction
 from django.core.mail import mail_admins
 from django.conf import settings
-from django.db import connection
 
 from carrot.connection import DjangoBrokerConnection
 from carrot.messaging import Publisher, Consumer
-from trackable import site, TrackableError
+from trackable import TrackableError
 from trackable.models import Spider
+from trackable.sites import site
 
 import multiprocessing
 import datetime
@@ -22,6 +23,8 @@ USER_AGENT_FILTERING = getattr(settings,'TRACKABLE_USER_AGENT_FILTERING', False)
 REMOVE_MALFORMED_MESSAGES = getattr(settings,'TRACKABLE_REMOVE_MALFORMED_MESSAGES', False)
 CAPTURE_CONNECTION_ERRORS = getattr(settings,'TRACKABLE_CAPTURE_CONNECTION_ERRORS', False)
 PROCESS_NUM_MESSAGES = getattr(settings,'TRACKABLE_PROCESS_NUM_MESSAGES', 100)
+LOGLEVEL = getattr(settings,'TRACKABLE_LOGLEVEL', logging.WARNING)
+MAGIC_FLAG = getattr(settings,'TRACKABLE_MAGIC_FLAG', '7R4CK4813M491C')
 
 UNDEFINED_AGENT = 'UNDEFINED_HTTP_USER_AGENT'
 
@@ -97,17 +100,10 @@ def send_message(request, obj, field_name, op_name, data_cls=None, options={}):
     except KeyError:
         pass
 
-    # data_obj = data_cls.objects.get_data_object(obj,options)
-    # content_type_pk = ContentType.objects.get_for_model(data_cls).pk
-    # object_id = data_obj.pk
-    # user_agent = request.META['HTTP_USER_AGENT'] \
-    #     if 'HTTP_USER_AGENT' in request.META else 'Undefined HTTP_USER_AGENT'
-    # message_body = \
-    #     "%s:(%s,%d,%d,%s)=%d" % (user_agent,op_name,content_type_pk,object_id,field_name,value)
-
     message_obj = {}
-    message_obj['content_type_pk'] = ContentType.objects.get_for_model(data_cls).pk
-    message_obj['object_id'] = data_cls.objects.get_data_object(obj,options).pk
+    message_obj['magic'] = MAGIC_FLAG
+    message_obj['data_object_pk'] = data_cls.objects.get_data_object(obj,options).pk
+    message_obj['data_cls'] = data_cls
     message_obj['user_agent'] = request.META['HTTP_USER_AGENT'] \
         if 'HTTP_USER_AGENT' in request.META else UNDEFINED_AGENT
     message_obj['field_name'] = field_name
@@ -140,7 +136,7 @@ def send_decrement_message(request, obj, field_name, data_cls=None, options={}):
         options.update([('value',1)])
     send_message(request, obj, field_name, 'decr', data_cls=data_cls, options=options)
 
-def process_messages(log=False, model_cls=None, max_messages=PROCESS_NUM_MESSAGES):
+def process_messages(logger=None, model_cls=None, max_messages=PROCESS_NUM_MESSAGES):
     """
     Process all currently gathered messages by compiling and 
     saving them to the database.
@@ -157,13 +153,16 @@ def process_messages(log=False, model_cls=None, max_messages=PROCESS_NUM_MESSAGE
 
     values_lookup = {}
     messages_lookup = {}
-
     cnt = 1
 
-    logger = multiprocessing.get_logger()
+    if not logger:
+        logger = logging.getLogger('trackable')
+        console = logging.StreamHandler()
+        logger.setLevel(LOGLEVEL)
+        logger.addHandler(console)
 
     # HACK: to support multiprocessing with Django DB connections, & c.
-    connection.close()
+    # connection.close()
 
     for i in xrange(max_messages):
         message = consumer.fetch()
@@ -171,68 +170,96 @@ def process_messages(log=False, model_cls=None, max_messages=PROCESS_NUM_MESSAGE
             return
 
         message_obj = pickle.loads(message.body)
+        if 'magic' not in message_obj or message_obj['magic'] != MAGIC_FLAG:
+            continue
+
         logger.info( "%d Got message: %s" % (cnt,message_obj) )
         cnt += 1
 
         if USER_AGENT_FILTERING:
             if message_obj['user_agent'] == UNDEFINED_AGENT:
                 msg = "Cannot match: user agent does not exist."
-                logger.warn( msg )
+                logger.warning( msg )
                 message.ack()
                 continue
             hits = Spider.objects.filter( \
                 user_agent__icontains=message_obj['user_agent'][:128])
             if hits:
                 msg = "Not processing potential spider-generated tracking message. User agent=%s" % (message_obj['user_agent'])
-                logger.warn( msg )
+                logger.warning( msg )
                 message.ack()
                 continue
 
-        (op_name,field_name,contenttype_pk,object_id,result) = \
+        # (op_name,field_name,contenttype_pk,object_id,result) = \
+        #     message_obj['op_name'], message_obj['field_name'], \
+        #     message_obj['content_type_pk'], message_obj['object_id'], \
+        #     message_obj['value']
+
+        (op_name,field_name,data_cls,data_object_pk,result) = \
             message_obj['op_name'], message_obj['field_name'], \
-            message_obj['content_type_pk'], message_obj['object_id'], \
+            message_obj['data_cls'], message_obj['data_object_pk'], \
             message_obj['value']
 
-        logger.debug( "Parsed message parameters" )
+        # _model_cls = model_cls
+        # (op_name,field_name,content_type_pk,object_pk,result) = \
+        #     message_obj['op_name'], message_obj['field_name'], \
+        #     message_obj['content_type_pk'], message_obj['object_pk'], \
+        #     message_obj['value']
+
+        # try:
+        #     model_content_type = ContentType.objects.get(pk=content_type_pk)
+        # except ContentType.DoesNotExist, e:
+        #     msg = "Cannot process message concerning object of content_type %d: %s" % \
+        #         (content_type_pk,message.body)
+        #     logger.warning( msg )
+        #     continue
+
+        # logger.info( "Using content_type_pk: %d" % (content_type_pk) )
+        # logger.info( "Determined content_type: %s" % (model_content_type) )
+        # logger.info( "Determined content_type.model_class(): %s" % (model_content_type.model_class()) )
+
+        # _model_cls = model_content_type.model_class()
+        # if model_cls and _model_cls != model_cls:
+        #     msg = u""
+        #     logger.warning( msg )
+        #     continue
+
+        # record = None
+        # try:
+        #     record = _model_cls.objects.get(pk=object_pk)
+        # except AttributeError:
+        #     msg = u"Trackable model class unspecified. Skipping: model_cls=%s _model_cls=%s" % (model_cls,_model_cls)
+        #     logger.warning( msg )
+        #     continue
+        # except _model_cls.DoesNotExist:
+        #     msg = u"Trackable record doesn't exist (ctype=%s,pk=%s): %s" % (_model_cls,object_pk,message_obj)
+        #     logger.warning( msg )
+        #     continue
+
+        # @transaction.commit_on_success
+        # def commit():
+        #     print "commit record: %s" % (record)
+        #     record.save()
+
+        data_object = data_cls.objects.get(pk=data_object_pk)
 
         try:
-            model_content_type = ContentType.objects.get(pk=contenttype_pk)
-        except ContentType.DoesNotExist, e:
-            msg = "Cannot process message concerning object of content_type %d: %s" % (contenttype_pk,message.body)
-            logger.warn( msg )
-            continue
-
-        logger.debug( "Determined content_type" )
-
-        if model_cls and model_content_type.model_class() != model_cls:
-            logger.warn( "Skipping model_cls != model_content_type.model_class()" )
-            continue
-
-        _model_cls = model_cls
-        if not model_cls:
-            _model_cls = model_content_type.model_class()
-
-        try:
-            record = _model_cls.objects.get(pk=object_id)
-        except _model_cls.DoesNotExist:
-            msg = u"Trackable record doesn't exist (ctype=%s,pk=%s): %s" % (_model_cls,object_id,message_obj)
-            logger.warn( msg )
-            continue
-
-        try:
-            getattr(record,op_name)
+            getattr(data_object,op_name)
         except AttributeError:
             raise TrackableError( \
                 u"%s does not support %s operation." \
-                    % (record._meta.verbose_name,op_name))
+                    % (data_object,op_name))
 
-        op_func = getattr(record,op_name)
+        op_func = getattr(data_object,op_name)
         op_func(field_name,result)
+        # commit()
 
-        record = _model_cls.objects.get(pk=object_id)
-
-        if log:
-            logger.info( "(%s)->%s on %s: %s" % (record,op_name,field_name,result))
+        # record = _model_cls.objects.get(pk=object_pk)
+        # record = model_cls.objects.get(pk=record.pk)
+        data_object = data_cls.objects.get(pk=data_object_pk)
+        logger.info( "(%s)->%s on %s: %s" % (data_object,op_name,field_name,result))
 
         # Acknowledge the messages now that the operation has been registered
         message.ack()
+
+    return cnt-1

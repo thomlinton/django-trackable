@@ -1,7 +1,7 @@
 from django.conf.urls.defaults import *
 
 from trackable.tests.models import Page
-from trackable.tests.test_views import page_detail
+from trackable.tests.views import page_detail
 
 
 urlpatterns = patterns('',

@@ -1,6 +1,9 @@
-from trackable.models import TrackableData, TrackableTimeSeriesData, TrackableError
-from trackable.sites import TrackableRegistry, site
+# from trackable.models import TrackableData, TrackableTimeSeriesData, TrackableError
+# from trackable.sites import TrackableRegistry, site
 
+
+class TrackableError(Exception):
+    pass
 
 def autodiscover():
     """
@@ -31,3 +34,4 @@ def autodiscover():
             # attempting to import it, otherwise we want it to bubble up.
             if module_has_submodule(mod, 'trackabledata'):
                 raise
+
