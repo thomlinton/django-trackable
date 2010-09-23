@@ -1,5 +1,5 @@
+from setuptools import setup, find_packages
 import os
-from setuptools import setup
 
 # Utility function to read the README file.
 # Used for the long_description.  It's nice, because now 1) we have a top level
@@ -17,7 +17,7 @@ setup(
     license = "BSD",
     keywords = "django tracking",
     url = "http://github.com/yorkedork/django-trackable/tree/master",
-    packages=['trackable',],
+    packages=find_packages(),
     install_requires = [
         'django-celery',
         ],
@@ -31,4 +31,13 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: BSD License",
     ],
+    package_data={
+        'trackable.tests': [
+            'fixtures/*.json',
+            'templates/*.html',            
+        ],
+        'trackable': [
+            'fixtures/*.json',
+        ],
+    },
 )
