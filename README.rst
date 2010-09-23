@@ -15,6 +15,12 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.2.2
+=====
+
+* Clean up in messages.process_messages
+* Fixed error with data_cls being coerced as unicode (which fails unless __unicode__ is specified on that model)
+
 0.2.1
 =====
 
