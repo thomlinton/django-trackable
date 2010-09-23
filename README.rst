@@ -15,6 +15,12 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.2.1
+=====
+
+* Fixing bug found in fold_trackable_messages management command and related omission in messaging.process_messages.
+* Fixed improper setup.py package configuration.
+
 0.2.0
 =====
 
