@@ -161,9 +161,6 @@ def process_messages(logger=None, model_cls=None, max_messages=PROCESS_NUM_MESSA
         logger.setLevel(LOGLEVEL)
         logger.addHandler(console)
 
-    # HACK: to support multiprocessing with Django DB connections, & c.
-    # connection.close()
-
     for i in xrange(max_messages):
         message = consumer.fetch()
         if not message:
@@ -190,59 +187,13 @@ def process_messages(logger=None, model_cls=None, max_messages=PROCESS_NUM_MESSA
                 message.ack()
                 continue
 
-        # (op_name,field_name,contenttype_pk,object_id,result) = \
-        #     message_obj['op_name'], message_obj['field_name'], \
-        #     message_obj['content_type_pk'], message_obj['object_id'], \
-        #     message_obj['value']
-
         (op_name,field_name,data_cls,data_object_pk,result) = \
             message_obj['op_name'], message_obj['field_name'], \
             message_obj['data_cls'], message_obj['data_object_pk'], \
             message_obj['value']
 
-        # _model_cls = model_cls
-        # (op_name,field_name,content_type_pk,object_pk,result) = \
-        #     message_obj['op_name'], message_obj['field_name'], \
-        #     message_obj['content_type_pk'], message_obj['object_pk'], \
-        #     message_obj['value']
-
-        # try:
-        #     model_content_type = ContentType.objects.get(pk=content_type_pk)
-        # except ContentType.DoesNotExist, e:
-        #     msg = "Cannot process message concerning object of content_type %d: %s" % \
-        #         (content_type_pk,message.body)
-        #     logger.warning( msg )
-        #     continue
-
-        # logger.info( "Using content_type_pk: %d" % (content_type_pk) )
-        # logger.info( "Determined content_type: %s" % (model_content_type) )
-        # logger.info( "Determined content_type.model_class(): %s" % (model_content_type.model_class()) )
-
-        # _model_cls = model_content_type.model_class()
-        # if model_cls and _model_cls != model_cls:
-        #     msg = u""
-        #     logger.warning( msg )
-        #     continue
-
-        # record = None
-        # try:
-        #     record = _model_cls.objects.get(pk=object_pk)
-        # except AttributeError:
-        #     msg = u"Trackable model class unspecified. Skipping: model_cls=%s _model_cls=%s" % (model_cls,_model_cls)
-        #     logger.warning( msg )
-        #     continue
-        # except _model_cls.DoesNotExist:
-        #     msg = u"Trackable record doesn't exist (ctype=%s,pk=%s): %s" % (_model_cls,object_pk,message_obj)
-        #     logger.warning( msg )
-        #     continue
-
-        # @transaction.commit_on_success
-        # def commit():
-        #     print "commit record: %s" % (record)
-        #     record.save()
-
         if model_cls and data_cls != model_cls:
-            msg = u"Skipping TrackableData type=%s" % (data_cls)
+            msg = u"Skipping TrackableData type=%s" % (str(data_cls))
             logger.info( msg )
             continue
 
@@ -257,14 +208,11 @@ def process_messages(logger=None, model_cls=None, max_messages=PROCESS_NUM_MESSA
 
         op_func = getattr(data_object,op_name)
         op_func(field_name,result)
-        # commit()
 
-        # record = _model_cls.objects.get(pk=object_pk)
-        # record = model_cls.objects.get(pk=record.pk)
         data_object = data_cls.objects.get(pk=data_object_pk)
         logger.info( "(%s)->%s on %s: %s" % (data_object,op_name,field_name,result))
 
-        # Acknowledge the messages now that the operation has been registered
+        # Acknowledge the message now that the operation has been registered
         message.ack()
 
     return cnt-1
