@@ -23,7 +23,7 @@ class Command(BaseCommand):
                 site.get_parent( model_cls )
             except NotRegistered, e:
                 raise CommandError( str(e) )
-            process_messages(log=True, model_cls=model_cls)
+            process_messages(model_cls=model_cls)
         if not len(trackable_model_specs):
             print "Processing messages for all trackable models"
-            process_messages(log=True)
+            process_messages()

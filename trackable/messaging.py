@@ -241,6 +241,11 @@ def process_messages(logger=None, model_cls=None, max_messages=PROCESS_NUM_MESSA
         #     print "commit record: %s" % (record)
         #     record.save()
 
+        if model_cls and data_cls != model_cls:
+            msg = u"Skipping TrackableData type=%s" % (data_cls)
+            logger.info( msg )
+            continue
+
         data_object = data_cls.objects.get(pk=data_object_pk)
 
         try:
