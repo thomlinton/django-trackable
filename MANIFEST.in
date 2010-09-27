@@ -1,1 +1,3 @@
 include README.rst
+exclude trackable/local_settings.py
+exclude trackable/test_settings.py

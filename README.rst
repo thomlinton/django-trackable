@@ -15,6 +15,12 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.3.0
+=====
+
+* Creating extensible message backend (currently supports carrot) 
+* Refactoring message/messaging infrastructure
+
 0.2.2
 =====
 
