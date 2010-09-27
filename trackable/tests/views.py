@@ -1,7 +1,7 @@
 from django.views.generic.list_detail import object_detail
 from django.shortcuts import get_object_or_404
 
-from trackable.messaging import send_increment_message
+from trackable.message.counting import send_increment_message
 from trackable.tests.models import Page
 
 

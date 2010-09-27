@@ -75,19 +75,22 @@ BASE_PATH = os.path.dirname(__file__)
 # TEST_RUNNER = "djcelery.contrib.test_runner.run_tests"
 
 # Celery settings
-CELERY_RESULT_BACKEND = "cache"
-# CELERY_QUEUES = {
-#     "trackable": {
-#         "exchange": "default",
-#         "binding_key": "trackable",
-#         },
-# }
-# CELERY_DEFAULT_QUEUE = "trackable"
-CELERY_SEND_TASK_ERROR_EMAILS = False
-CELERY_SEND_EVENTS = True
+# CELERY_RESULT_BACKEND = "cache"
+CELERY_QUEUES = {
+    "trackable": {
+        "exchange": "direct",
+        "binding_key": "trackable",
+        },
+}
+CELERY_DEFAULT_QUEUE = "trackable"
+CELERY_DEFAULT_EXCHANGE_TYPE = "direct"
+CELERY_DEFAULT_ROUTING_KEY = "trackable"
 
-CELERYD_CONCURRENCY = 2
-CELERYD_LOG_LEVEL = 'WARNING'
+# CELERY_SEND_TASK_ERROR_EMAILS = False
+# CELERY_SEND_EVENTS = True
+
+# CELERYD_CONCURRENCY = 2
+CELERYD_LOG_LEVEL = 'INFO'
 
 # Carrot settings
 BROKER_HOST = "localhost"
@@ -100,7 +103,8 @@ TRACKABLE_USER_AGENT_FILTERING = False
 TRACKABLE_REMOVE_MALFORMED_MESSAGES = True
 TRACKABLE_CAPTURE_CONNECTION_ERRORS = True
 TRACKABLE_DISABLE_COLLECTION_TASK = True
-TRACKABLE_LOGLEVEL = logging.DEBUG
+# TRACKABLE_LOGLEVEL = logging.DEBUG
+TRACKABLE_ENGINE = 'trackable.message.backends.carrot'
 
 FIXTURE_DIRS = (
     os.path.join( BASE_PATH, 'fixtures' )

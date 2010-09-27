@@ -2,22 +2,23 @@ from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, TransactionTestCase
 from django.conf import settings
 
-from trackable.messaging import ( \
-    send_increment_message, send_decrement_message, process_messages)
 from trackable.tests.trackabledata import PageViewTrackableData, PageRevisionTrackableData
-from trackable.tasks import CollectTrackingData
+from trackable.contrib.celery_tasks import ProcessTrackableMessages
+from trackable.message import connection
 from trackable.tests.models import Page
 
+from celery.execute import send_task
+
+import multiprocessing
 import datetime
 import logging
 import os.path
 import time
 
 
-class CorrectnessTest(TransactionTestCase):
+class CeleryTest(TransactionTestCase):
     urls = 'trackable.tests.urls'
     fixtures = ['page.json',]
-    celeryd_concurrency = 2
     template_dirs = [
         os.path.join(os.path.dirname(__file__), 'templates'),
     ]
@@ -25,14 +26,11 @@ class CorrectnessTest(TransactionTestCase):
     def setUp(self):
         self.old_template_dir = settings.TEMPLATE_DIRS
         settings.TEMPLATE_DIRS = self.template_dirs
-        # self.old_celeryd_concurrency = getattr(settings,'CELERYD_CONCURRENCY',0)
-        self.old_celeryd_concurrency = getattr(settings,'CELERYD_CONCURRENCY',0)
-        settings.CELERYD_CONCURRENCY = self.celeryd_concurrency
 
     def tearDown(self):
         settings.TEMPLATE_DIRS = self.old_template_dir
 
-    def testTrackableData(self):
+    def testUniprocessingWorkers(self):
         test_page = Page.objects.get(pk=1)
         kwargs = {
             'object_id':test_page.pk,
@@ -48,47 +46,49 @@ class CorrectnessTest(TransactionTestCase):
         trackable_data = PageViewTrackableData.objects.get_data_object(test_page)
         self.assertEquals(trackable_data.views,0)
 
-        for i in xrange(100):
+        for i in xrange(200):
             self.client.get(test_page.get_absolute_url())
 
         trackable_data = PageViewTrackableData.objects.get_data_object(test_page)
         self.assertEquals(trackable_data.views,0)
 
-        # HACK: to support multiprocessing with Django DB connections, & c.
-        # connection.close()
-
-        # process_messages()
-
-        # procs = [multiprocessing.Process(target=process_messages) for i in xrange(2)]
-        # for proc in procs: proc.start(); time.sleep(5)
-        # for proc in procs: proc.join(timeout=120)
-
-        # (task1,task2) = ( CollectTrackingData(),CollectTrackingData() )
-        # t1 = task1.delay()
-        # t2 = task2.delay()
-        # t2.get()
-        # t1.get()
-
-        task = CollectTrackingData()
-        t = task.delay()
-        result = t.get()
-
-        # time.sleep(20)
+        t3 = send_task("trackable.contrib.celery_tasks.ProcessTrackableMessages")
+        t3.get()
 
         trackable_data = PageViewTrackableData.objects.get_data_object(test_page)
-        self.assertEquals(trackable_data.views,100)
+        self.assertEquals(trackable_data.views,200)
 
-        for i in xrange(200):
-            self.client.get(test_page.get_absolute_url())
 
-        self.assertEquals(trackable_data.views,100)
+class ConcurrencyTest(TransactionTestCase):
+    urls = 'trackable.tests.urls'
+    fixtures = ['page.json',]
+    template_dirs = [
+        os.path.join(os.path.dirname(__file__), 'templates'),
+    ]
 
-        process_messages(max_messages=200)
+    def setUp(self):
+        self.old_template_dir = settings.TEMPLATE_DIRS
+        settings.TEMPLATE_DIRS = self.template_dirs
 
-        trackable_data = PageViewTrackableData.objects.get_data_object(test_page)
-        self.assertEquals(trackable_data.views,300)
+    def tearDown(self):
+        settings.TEMPLATE_DIRS = self.old_template_dir
 
-    def testTimeSeriesTrackableData(self):
-        pass
+    # def someTestFunc(self):
+    # 
+    # ...
+    # 
+    #     from django.db import connection as dj_connection
+    #     dj_connection.close()
+    # 
+    #     p1 = multiprocessing.Process(target=connection.process_messages)
+    #     p2 = multiprocessing.Process(target=connection.process_messages)
+    #
+    #     p1.start()
+    #     p2.start()
+    # 
+    #     p1.join()
+    #     p2.join()
+    # 
+    # ...
 
 __tests__ = {}
