@@ -1,16 +1,20 @@
 from django.utils.translation import ugettext_lazy as _
+from django.utils import simplejson
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import ( \
     HttpResponse, HttpResponseRedirect, HttpResponseServerError, Http404)
 
 from trackable import TrackableError
+import warnings
 
 
-def trackable_redirect( request, queryset, message_op, message_func, trackable_cls=None,
-                        url_field=None, redirect_func=None, 
-                        object_id=None, slug=None, slug_field='slug',
-                        **options):
+def track_object( request, queryset, message_op, message_func, trackable_cls=None,
+                  url_field=None, redirect_func=None, 
+                  object_id=None, slug=None, slug_field='slug',
+                  **options):
     """
+    A generic trackable view that aligns a trackable message with the 
+    HTTP request/response cycle.
 
     """
     model = queryset.model
@@ -28,6 +32,9 @@ def trackable_redirect( request, queryset, message_op, message_func, trackable_c
 
     message_func(request,obj,message_op,data_cls=trackable_cls,options=dict(options))
 
+    if request.is_ajax():
+        return simplejson.dumps(True)
+
     if redirect_func:
         return HttpResponseRedirect(redirect_func(obj,dict(options)))
     elif url_field and getattr(obj,url_field,''):
@@ -37,3 +44,12 @@ def trackable_redirect( request, queryset, message_op, message_func, trackable_c
 
     raise TrackableError( \
         u"url_field has not been specified and object has not defined a get_absolute_url property")
+
+def trackable_redirect( request, queryset, message_op, message_func, trackable_cls=None,
+                        url_field=None, redirect_func=None, 
+                        object_id=None, slug=None, slug_field='slug',
+                        **options):
+    warning = DeprecationWarning("`trackable.views.trackable_redirect` has been renamed to `trackable.views.track_object`")
+    warnings.warn( warning, stacklevel=2 )    
+    return track_object(request,queryset,message_op,message_func,trackable_cls,url_field=url_field,redirect_func=redirect_func,
+                        object_id=object_id,slug=slug,slug_field=slug_field,**options)
