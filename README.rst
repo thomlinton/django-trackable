@@ -15,6 +15,12 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.3.1
+=====
+
+* Renaming trackable.views.trackable_redirect and enabling support for AJAX requests.
+* Bug fix (trackable.management.commands.convert_tracking_data)
+
 0.3.0
 =====
 
