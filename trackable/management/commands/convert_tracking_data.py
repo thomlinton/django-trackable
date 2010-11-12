@@ -5,7 +5,7 @@ from django.db.models.loading import get_model
 from django.db import models, transaction
 
 from optparse import make_option
-from trackable import site
+from trackable.sites import site
 
 import warnings
 import sys
