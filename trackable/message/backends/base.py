@@ -1,5 +1,4 @@
 from django.contrib.contenttypes.models import ContentType
-from django.core.mail import mail_admins
 from django.conf import settings
 
 from trackable import TrackableError
