@@ -10,14 +10,14 @@ def read(fname):
 
 setup(
     name = "django-trackable",
-    version = "0.3.1",
+    version = "0.3.2",
     author = "Thom Linton",
     author_email = "thom.linton@gmail.com",
     description = "A Django application which provides tools for out-of-band capture of arbitrary tracking data.",
     license = "BSD",
     keywords = "django tracking",
     url = "http://github.com/yorkedork/django-trackable/tree/master",
-    packages=find_packages(),
+    packages=['trackable'],
     install_requires = [
         'django-celery',
         ],
@@ -31,13 +31,4 @@ setup(
         "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: BSD License",
     ],
-    package_data={
-        'trackable.tests': [
-            'fixtures/*.json',
-            'templates/*.html',            
-        ],
-        'trackable': [
-            'fixtures/*.json',
-        ],
-    },
 )
