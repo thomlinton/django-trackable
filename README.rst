@@ -15,8 +15,8 @@ instructions, please review the documentation.
 Release notes
 -------------
 
-0.3.2
-=====
+0.3.2 - 0.3.3
+=============
 
 * Fixing setuptools configuration to properly include templates and fixtures.
 
