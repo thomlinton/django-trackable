@@ -33,7 +33,7 @@ def track_object( request, queryset, message_op, message_func, trackable_cls=Non
     message_func(request,obj,message_op,data_cls=trackable_cls,options=dict(options))
 
     if request.is_ajax():
-        return simplejson.dumps(True)
+        return HttpResponse(simplejson.dumps(True),mimetype='application/javascript')
 
     if redirect_func:
         return HttpResponseRedirect(redirect_func(obj,dict(options)))
