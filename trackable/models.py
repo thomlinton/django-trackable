@@ -7,6 +7,8 @@ from django.db import transaction
 from django.conf import settings
 from django.db.models import F
 
+from trackable.exceptions import TrackableError
+
 import datetime
 
 
@@ -46,6 +48,7 @@ class TrackableDataManager(models.Manager):
             'object_id':obj.pk
             })
 
+        # FIXME
         try:
             return self.get_query_set().get(**params)
         except ObjectDoesNotExist:

@@ -4,7 +4,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.http import ( \
     HttpResponse, HttpResponseRedirect, HttpResponseServerError, Http404)
 
-from trackable import TrackableError
+from trackable.exceptions import TrackableError
 import warnings
 
 

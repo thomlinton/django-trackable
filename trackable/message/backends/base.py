@@ -1,7 +1,8 @@
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ObjectDoesNotExist
 from django.conf import settings
 
-from trackable import TrackableError
+from trackable.exceptions import TrackableError
 from trackable.models import Spider
 from trackable.sites import site
 
@@ -15,9 +16,10 @@ except ImportError:
     import pickle
 
 USER_AGENT_FILTERING = getattr(settings,'TRACKABLE_USER_AGENT_FILTERING', False)
-REMOVE_MALFORMED_MESSAGES = getattr(settings,'TRACKABLE_REMOVE_MALFORMED_MESSAGES', False)
-CAPTURE_CONNECTION_ERRORS = getattr(settings,'TRACKABLE_CAPTURE_CONNECTION_ERRORS', False)
+# REMOVE_MALFORMED_MESSAGES = getattr(settings,'TRACKABLE_REMOVE_MALFORMED_MESSAGES', False)
+# CAPTURE_CONNECTION_ERRORS = getattr(settings,'TRACKABLE_CAPTURE_CONNECTION_ERRORS', False)
 PROCESS_NUM_MESSAGES = getattr(settings,'TRACKABLE_PROCESS_NUM_MESSAGES', None)
+STRICT_MODE = getattr(settings,'TRACKABLE_STRICT_MODE', True)
 LOGLEVEL = getattr(settings,'TRACKABLE_LOGLEVEL', logging.WARNING)
 MAGIC_FLAG = getattr(settings,'TRACKABLE_MAGIC_FLAG', '7R4CK4813M491C')
 
@@ -65,8 +67,6 @@ class BaseMessageBackend(object):
         message_obj['options'] = options
         message_obj['value'] = value
 
-        # message_body = pickle.dumps( message_obj )
-        # self.send(message_body)
         self.send( message_obj )
 
     def process_messages(self, logger=None, model_cls=None, max_messages=PROCESS_NUM_MESSAGES):
@@ -81,6 +81,7 @@ class BaseMessageBackend(object):
 
         values_lookup = {}
         messages_lookup = {}
+        processed = 0
         cnt = 0
 
         if not logger:
@@ -94,7 +95,6 @@ class BaseMessageBackend(object):
             if not message:
                 break
 
-            # message_obj = pickle.loads(message.body)
             message_obj = message.payload
             if 'magic' not in message_obj or message_obj['magic'] != MAGIC_FLAG:
                 logger.warning( "Magic bytes not found or do not match. Skipping message." )
@@ -127,22 +127,36 @@ class BaseMessageBackend(object):
                 logger.info( msg )
                 continue
 
-            data_object = data_cls.objects.get(pk=data_object_pk)
+            try:
+                data_object = data_cls.objects.get(pk=data_object_pk)
+            except ObjectDoesNotExist, e:
+                msg = "%s object with primary key %s does not exist" \
+                    % (data_cls.__name__,data_object_pk)
+                if not STRICT_MODE:
+                    continue
+                raise e
 
             try:
-                getattr(data_object,op_name)
-            except AttributeError:
-                raise TrackableError( \
-                    u"%s does not support %s operation." \
-                        % (data_object,op_name))
-
-            op_func = getattr(data_object,op_name)
-            op_func(field_name,result)
+                op_func = getattr(data_object,op_name)
+                op_func(field_name,result)
+            except AttributeError, e:
+                msg = u"%s does not support %s operation." \
+                    % (data_object,op_name)
+                if not STRICT_MODE:
+                    continue
+                raise e
+            except TrackableError, e:
+                msg = u"%s does not have an attribute %s" \
+                    % (data_object,field_name)
+                if not STRICT_MODE:
+                    continue
+                raise e
 
             data_object = data_cls.objects.get(pk=data_object_pk)
             logger.info( "(%s)->%s on %s: %s" % (data_object,op_name,field_name,result))
 
             # Acknowledge the message now that the operation has been registered
             message.ack()
+            processed += 1
 
-        return cnt
+        return processed

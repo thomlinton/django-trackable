@@ -1,9 +1,4 @@
-# from trackable.models import TrackableData, TrackableTimeSeriesData, TrackableError
-# from trackable.sites import TrackableRegistry, site
 
-
-class TrackableError(Exception):
-    pass
 
 def autodiscover():
     """

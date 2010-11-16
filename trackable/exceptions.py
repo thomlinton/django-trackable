@@ -1,0 +1,2 @@
+class TrackableError(Exception):
+    pass
