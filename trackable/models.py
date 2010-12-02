@@ -57,8 +57,8 @@ class TrackableDataManager(models.Manager):
             except IntegrityError, e:
                 transaction.rollback()
                 return self.get_query_set().get(**params)
-        # except MultipleObjectsReturned:
-        #     return self.get_query_set().filter(**params)[0]
+        except MultipleObjectsReturned:
+            return self.get_query_set().filter(**params)[0]
 
 class TrackableData(models.Model):
     """ """

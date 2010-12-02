@@ -1,6 +1,6 @@
+from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils.translation import ugettext_lazy as _
 from django.utils import simplejson
-from django.core.exceptions import ObjectDoesNotExist
 from django.http import ( \
     HttpResponse, HttpResponseRedirect, HttpResponseServerError, Http404)
 
@@ -29,6 +29,9 @@ def track_object( request, queryset, message_op, message_func, trackable_cls=Non
         obj = queryset.get()
     except ObjectDoesNotExist:
         raise Http404("No %s found matching the query" % (model._meta.verbose_name))
+    # FIXME
+    except MultipleObjectsReturned:
+        obj = queryset[0]
 
     message_func(request,obj,message_op,data_cls=trackable_cls,options=dict(options))
 
