@@ -15,6 +15,11 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.3.6
+=====
+
+* Various bug fixes backported from development
+
 0.3.5
 =====
 
@@ -55,18 +60,3 @@ Release notes
 * Refactoring process_messages to remove ad-hoc message structure and to instead utilize pickle.
 * Added tests/test infrastructure.
 * Restructuring application to operate correctly under (real) concurrency.
-
-0.1.2
-=====
-
-* Maintenance release to fix PyPI issues.
-
-0.1.1
-=====
-
-* Updating documentation
-
-0.1.0
-=====
-
-* Initial release
