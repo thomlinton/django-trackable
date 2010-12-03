@@ -15,11 +15,6 @@ instructions, please review the documentation.
 Release notes
 -------------
 
-0.3.6
-=====
-
-* Various bug fixes backported from development
-
 0.3.5
 =====
 
