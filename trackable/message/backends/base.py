@@ -16,8 +16,6 @@ except ImportError:
     import pickle
 
 USER_AGENT_FILTERING = getattr(settings,'TRACKABLE_USER_AGENT_FILTERING', False)
-# REMOVE_MALFORMED_MESSAGES = getattr(settings,'TRACKABLE_REMOVE_MALFORMED_MESSAGES', False)
-# CAPTURE_CONNECTION_ERRORS = getattr(settings,'TRACKABLE_CAPTURE_CONNECTION_ERRORS', False)
 PROCESS_NUM_MESSAGES = getattr(settings,'TRACKABLE_PROCESS_NUM_MESSAGES', None)
 STRICT_MODE = getattr(settings,'TRACKABLE_STRICT_MODE', True)
 LOGLEVEL = getattr(settings,'TRACKABLE_LOGLEVEL', logging.WARNING)
@@ -44,7 +42,8 @@ class BaseMessageBackend(object):
 
     def send_message(self, request, obj, field_name, op_name, data_cls, options={}):
         """
-        
+        In-process entry-point for data tracking facilities that packages a tracking
+        request up and emits a signal to be processed at some future point in time.
 
         """
         if not data_cls:
@@ -66,6 +65,23 @@ class BaseMessageBackend(object):
         message_obj['op_name'] = op_name
         message_obj['options'] = options
         message_obj['value'] = value
+
+        #
+        # TODO: Consider alternative formulations?
+        #
+        if USER_AGENT_FILTERING:
+            if message_obj['user_agent'] == UNDEFINED_AGENT:
+                msg = "Cannot match: user agent does not exist."
+                logger.warning( msg )
+                message.ack()
+                return
+            hits = Spider.objects.filter( \
+                user_agent__icontains=message_obj['user_agent'][:128])
+            if hits:
+                msg = "Not processing potential spider-generated tracking message. User agent=%s" % (message_obj['user_agent'])
+                logger.warning( msg )
+                message.ack()
+                return
 
         self.send( message_obj )
 
@@ -90,7 +106,7 @@ class BaseMessageBackend(object):
             logger.setLevel(LOGLEVEL)
             logger.addHandler(console)
 
-        while test_condition:
+        while test_condition(processed):
             message = self.recv()
             if not message:
                 break
@@ -102,20 +118,6 @@ class BaseMessageBackend(object):
 
             logger.info( "%d Got message: %s" % (cnt+1,message_obj) )
             cnt += 1
-
-            if USER_AGENT_FILTERING:
-                if message_obj['user_agent'] == UNDEFINED_AGENT:
-                    msg = "Cannot match: user agent does not exist."
-                    logger.warning( msg )
-                    message.ack()
-                    continue
-                hits = Spider.objects.filter( \
-                    user_agent__icontains=message_obj['user_agent'][:128])
-                if hits:
-                    msg = "Not processing potential spider-generated tracking message. User agent=%s" % (message_obj['user_agent'])
-                    logger.warning( msg )
-                    message.ack()
-                    continue
 
             (op_name,field_name,data_cls,data_object_pk,result) = \
                 message_obj['op_name'], message_obj['field_name'], \
