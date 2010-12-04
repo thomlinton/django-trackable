@@ -26,5 +26,5 @@ class Command(BaseCommand):
             cnt = connection.process_messages(model_cls=model_cls)
         if not len(trackable_model_specs):
             print "Processing messages for all trackable models"
-            cnt = connection.process_messages()
+            cnt = connection.process_messages(load_send_queue=True)
         print "Processed %d" % (cnt)

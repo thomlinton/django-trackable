@@ -15,10 +15,15 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.4.0
+=====
+
+* Major refactor of messaging.backends to include support for disconnected operation.
+
 0.3.5
 =====
 
-* Correcting stupidity in trackable.views.track_object (proper handling of AJAX-call)
+* Correcting stupidity in trackable.views.track_object (proper handling of AJAX-call).
 
 0.3.2 - 0.3.4
 =============
