@@ -10,8 +10,15 @@ from trackable.message import connection
 
 
 class ProcessTrackableMessages(Task):
-    def run(self, **kwargs):
+    name = 'trackable.process_messages'
+    max_retries = 1
+
+    def run(self, *args, **kwargs):
         logger = self.get_logger(**kwargs)
-        return connection.process_messages(logger=logger)
+        try:
+            return connection.process_messages(logger=logger)
+        except Exception, exc:
+            logger.error(exc)
+            self.retry(args, kwargs, exc=exc)
 
 tasks.register(ProcessTrackableMessages)
