@@ -1,8 +1,8 @@
 from django.core.mail import mail_admins
 from django.conf import settings
 
-from carrot.connection import DjangoBrokerConnection
-from carrot.messaging import Publisher, Consumer
+from kombu.connection import BrokerConnection
+from kombu.compat import Publisher, Consumer
 
 from trackable.message.backends.base import BaseMessageBackend
 
@@ -10,8 +10,9 @@ from trackable.message.backends.base import BaseMessageBackend
 class MessageBackend(BaseMessageBackend):
     """ """
     def __init__(self):
+        self.sent_failure_notification = False
         try:
-            self.connection = DjangoBrokerConnection()
+            self.connection = BrokerConnection()
             self.consumer = Consumer( \
                 connection=self.connection,
                 queue='trackable_internal',
@@ -20,7 +21,7 @@ class MessageBackend(BaseMessageBackend):
                 )
             self.publisher = Publisher( \
                 connection=self.connection,
-                queue='trackable_internal',
+                # queue='trackable_internal',
                 exchange='direct',
                 routing_key='trackable_internal',
                 serializer='pickle',
@@ -29,7 +30,7 @@ class MessageBackend(BaseMessageBackend):
             if settings.DEBUG:
                 raise e
             mail_admins(
-                '[django-trackable] Error while acquiring a connection in carrot backend',
+                '[django-trackable] Error while acquiring a connection in kombu backend',
                 '%s' % (str(e))
                 )
 
@@ -40,10 +41,12 @@ class MessageBackend(BaseMessageBackend):
         except Exception, e:
             if settings.DEBUG:
                 raise e
-            mail_admins(
-                '[django-trackable] Error while sending message in carrot backend',
-                '%s' % (str(e))
-                )
+            if not self.sent_failure_notification:
+                mail_admins(
+                    '[django-trackable] Error while sending message in kombu backend',
+                    '%s' % (str(e))
+                    )
+                self.sent_failure_notification = True
 
     def recv(self):
         try:
@@ -51,7 +54,9 @@ class MessageBackend(BaseMessageBackend):
         except Exception, e:
             if settings.DEBUG:
                 raise e
-            mail_admins(
-                '[django-trackable] Error while sending message in carrot backend',
-                '%s' % (str(e))
-                )
+            if not self.sent_failure_notification:
+                mail_admins(
+                    '[django-trackable] Error while recieving message in kombu backend',
+                    '%s' % (str(e))
+                    )
+                self.sent_failure_notification = True

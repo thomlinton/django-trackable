@@ -104,7 +104,7 @@ TRACKABLE_REMOVE_MALFORMED_MESSAGES = True
 TRACKABLE_CAPTURE_CONNECTION_ERRORS = True
 TRACKABLE_DISABLE_COLLECTION_TASK = True
 # TRACKABLE_LOGLEVEL = logging.DEBUG
-TRACKABLE_ENGINE = 'trackable.message.backends.carrot'
+TRACKABLE_ENGINE = 'trackable.message.backends.kombu'
 
 FIXTURE_DIRS = (
     os.path.join( BASE_PATH, 'fixtures' )
