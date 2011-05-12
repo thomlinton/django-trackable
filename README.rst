@@ -15,6 +15,11 @@ instructions, please review the documentation.
 Release notes
 -------------
 
+0.3.7
+=====
+
+* Bug fixes and migration from carrot -> kombu
+
 0.3.6
 =====
 
@@ -41,22 +46,3 @@ Release notes
 
 * Creating extensible message backend (currently supports carrot) 
 * Refactoring message/messaging infrastructure
-
-0.2.2
-=====
-
-* Clean up in messages.process_messages
-* Fixed error with data_cls being coerced as unicode (which fails unless __unicode__ is specified on that model)
-
-0.2.1
-=====
-
-* Fixing bug found in fold_trackable_messages management command and related omission in messaging.process_messages.
-* Fixed improper setup.py package configuration.
-
-0.2.0
-=====
-
-* Refactoring process_messages to remove ad-hoc message structure and to instead utilize pickle.
-* Added tests/test infrastructure.
-* Restructuring application to operate correctly under (real) concurrency.
