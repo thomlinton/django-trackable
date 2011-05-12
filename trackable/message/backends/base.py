@@ -106,7 +106,7 @@ class BaseMessageBackend(object):
             logger.setLevel(LOGLEVEL)
             logger.addHandler(console)
 
-        while test_condition(processed):
+        while test_condition(cnt):
             message = self.recv()
             if not message:
                 break
@@ -135,6 +135,7 @@ class BaseMessageBackend(object):
                 msg = "%s object with primary key %s does not exist" \
                     % (data_cls.__name__,data_object_pk)
                 if not STRICT_MODE:
+                    message.ack()
                     continue
                 raise e
 
@@ -145,12 +146,14 @@ class BaseMessageBackend(object):
                 msg = u"%s does not support %s operation." \
                     % (data_object,op_name)
                 if not STRICT_MODE:
+                    message.ack()
                     continue
                 raise e
             except TrackableError, e:
                 msg = u"%s does not have an attribute %s" \
                     % (data_object,field_name)
                 if not STRICT_MODE:
+                    message.ack()
                     continue
                 raise e
 
