@@ -134,6 +134,7 @@ class BaseMessageBackend(object):
             except ObjectDoesNotExist, e:
                 msg = "%s object with primary key %s does not exist" \
                     % (data_cls.__name__,data_object_pk)
+                logger.warning( msg )
                 if not STRICT_MODE:
                     message.ack()
                     continue
@@ -145,6 +146,7 @@ class BaseMessageBackend(object):
             except AttributeError, e:
                 msg = u"%s does not support %s operation." \
                     % (data_object,op_name)
+                logger.warning( msg )
                 if not STRICT_MODE:
                     message.ack()
                     continue
@@ -152,6 +154,7 @@ class BaseMessageBackend(object):
             except TrackableError, e:
                 msg = u"%s does not have an attribute %s" \
                     % (data_object,field_name)
+                logger.warning( msg )
                 if not STRICT_MODE:
                     message.ack()
                     continue
